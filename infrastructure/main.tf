@@ -96,6 +96,14 @@ resource "aws_ecs_task_definition" "flask" {
       containerPort = 5000
       hostPort      = 5000
     }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/my-flask-app"
+        awslogs-region        = var.region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
   }])
 }
 
@@ -132,10 +140,10 @@ resource "aws_s3_bucket_versioning" "versioning" {
   }
 }
 
-resource "aws_iam_role_policy" "s3_access" {
-  name   = "S3AccessPolicy"
+resource "aws_iam_role_policy" "s3_and_logs_access" {
+  name   = "S3AndLogsAccessPolicy"
   role   = aws_iam_role.ecs_task_execution.name
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -147,9 +155,18 @@ resource "aws_iam_role_policy" "s3_access" {
           "s3:ListBucket"
         ]
         Resource = [
-          "${aws_s3_bucket.main.arn}",
-          "${aws_s3_bucket.main.arn}/*"
+          "${aws_s3_bucket.file_storage.arn}",
+          "${aws_s3_bucket.file_storage.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
       }
     ]
   })
