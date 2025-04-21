@@ -155,8 +155,8 @@ resource "aws_iam_role_policy" "s3_and_logs_access" {
           "s3:ListBucket"
         ]
         Resource = [
-          "${aws_s3_bucket.file_storage.arn}",
-          "${aws_s3_bucket.file_storage.arn}/*"
+          "${aws_s3_bucket.main.arn}",
+          "${aws_s3_bucket.main.arn}/*"
         ]
       },
       {
