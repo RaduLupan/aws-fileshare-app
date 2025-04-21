@@ -79,6 +79,12 @@ resource "aws_iam_policy_attachment" "ecs_task_execution_policy" {
   roles      = [aws_iam_role.ecs_task_execution.name]
 }
 
+# Define the CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "ecs_log_group" {
+  name              = "/ecs/my-flask-app"
+  retention_in_days = 30  # Adjust the retention period as necessary
+}
+
 resource "aws_ecs_task_definition" "flask" {
   family                   = "flask-app-task"
   network_mode             = "awsvpc"
@@ -99,7 +105,7 @@ resource "aws_ecs_task_definition" "flask" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        awslogs-group         = "/ecs/my-flask-app"
+        awslogs-group         = "${aws_cloudwatch_log_group.ecs_log_group.name}"
         awslogs-region        = var.region
         awslogs-stream-prefix = "ecs"
       }
