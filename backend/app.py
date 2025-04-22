@@ -1,5 +1,8 @@
+import logging
 import boto3
 from flask import Flask, request, jsonify
+
+logging.basicConfig(level=logging.DEBUG)
 
 s3_client = boto3.client('s3')
 
@@ -19,8 +22,8 @@ def upload_file():
         s3_client.upload_fileobj(file, "my-wetransfer-clone-bucket-0319cf63dee7", file.filename)
         return jsonify({'message': 'File successfully uploaded'}), 200
     except Exception as e:
-        print(e)  # Log the exception for debugging
-        return jsonify({'error': 'File upload failed'}), 500
+        logging.exception("Exception during S3 upload")
+        return jsonify({'error': 'File upload failed', 'detail': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
