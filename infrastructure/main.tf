@@ -2,41 +2,39 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
-  enable_dns_support = true
-}
+# Create a VPC with public subnets for ECS Fargate
+# This example uses the terraform-aws-modules/vpc/aws module from the Terraform Registry
+module "vpc" {
+  source = "terraform-aws-modules/vpc/aws"
 
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-}
+  name = "ecs-vpc"
+  cidr = var.vpc_cidr
 
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
+  azs = ["us-east-2a", "us-east-2b"]
+  public_subnets = [cidrsubnet(var.vpc_cidr, 8, 0), cidrsubnet(var.vpc_cidr, 8, 1)]
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
+  # Prevent creation of private subnets and NAT gateways
+  private_subnets = []
+  enable_nat_gateway = false
+
+  manage_default_network_acl = true
+
+  tags = {
+    Terraform = "true"
+    Environment = "dev"
   }
 }
 
-resource "aws_route_table_association" "pub" {
-  subnet_id      = aws_subnet.main.id
-  route_table_id = aws_route_table.public.id
-}
-
-data "aws_availability_zones" "available" {}
-
-resource "aws_subnet" "main" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, 0) # Determines a /24 subnet CIDR
-  availability_zone = data.aws_availability_zones.available.names[0]
-}
-
+# Create a security group for the ECS service
+# This security group allows inbound traffic on port 5000 (HTTP) from all sources
 resource "aws_security_group" "ecs" {
   name        = "ecs_security_group"
   description = "ECS security group"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = module.vpc.vpc_id
+  tags = {
+    Name        = "ecs_security_group"
+    Environment = var.environment
+  }
 
   ingress {
     from_port   = 5000
@@ -53,10 +51,13 @@ resource "aws_security_group" "ecs" {
   }
 }
 
+# Create an ECS cluster
+# This cluster will be used to run the ECS Fargate tasks
 resource "aws_ecs_cluster" "main" {
   name = "my-ecs-cluster"
 }
 
+# Create an IAM role for ECS task execution
 resource "aws_iam_role" "ecs_task_execution" {
   name               = "ecs_task_execution_role"
   assume_role_policy = jsonencode({
@@ -73,6 +74,8 @@ resource "aws_iam_role" "ecs_task_execution" {
   })
 }
 
+# Attach the AmazonECSTaskExecutionRolePolicy managed policy to the role
+# This policy allows ECS tasks to pull images from ECR and write logs to CloudWatch
 resource "aws_iam_policy_attachment" "ecs_task_execution_policy" {
   name       = "ecs_task_execution_policy"
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
@@ -85,6 +88,7 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
   retention_in_days = 30  # Adjust the retention period as necessary
 }
 
+# Create the ECS task definition
 resource "aws_ecs_task_definition" "flask" {
   family                   = "flask-app-task"
   network_mode             = "awsvpc"
@@ -113,6 +117,7 @@ resource "aws_ecs_task_definition" "flask" {
   }])
 }
 
+# Create the ECS service
 resource "aws_ecs_service" "flask" {
   name            = "flask-app-service"
   cluster         = aws_ecs_cluster.main.id
@@ -126,10 +131,12 @@ resource "aws_ecs_service" "flask" {
   }
 }
 
+# Create a random ID for the S3 bucket name to ensure uniqueness
 resource "random_id" "bucket_suffix" {
   byte_length = 6 # 6 bytes * 2 hex chars per byte = 12 hex chars
 }
 
+# Create an S3 bucket for file uploads
 resource "aws_s3_bucket" "main" {
   bucket = "my-wetransfer-clone-bucket-${random_id.bucket_suffix.hex}"
 
@@ -139,6 +146,7 @@ resource "aws_s3_bucket" "main" {
   }
 }
 
+# Enable versioning on the S3 bucket
 resource "aws_s3_bucket_versioning" "versioning" {
   bucket = aws_s3_bucket.main.id
   versioning_configuration {
@@ -146,6 +154,7 @@ resource "aws_s3_bucket_versioning" "versioning" {
   }
 }
 
+# Create policy for the task execution role to access the S3 bucket
 resource "aws_iam_role_policy" "s3_and_logs_access" {
   name   = "S3AndLogsAccessPolicy"
   role   = aws_iam_role.ecs_task_execution.name
