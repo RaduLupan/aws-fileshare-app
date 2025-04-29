@@ -2,12 +2,12 @@
 
 output "vpc_id" {
   description = "The ID of the VPC"
-  value       = aws_vpc.main.id
+  value       = module.vpc.vpc_id
 }
 
 output "subnet_id" {
   description = "The ID of the subnet"
-  value       = aws_subnet.main.id
+  value       = module.vpc.public_subnets[0]
 }
 
 output "security_group_id" {
@@ -28,11 +28,6 @@ output "ecs_task_definition_arn" {
 output "ecs_service_name" {
   description = "The name of the ECS service"
   value       = aws_ecs_service.flask.name
-}
-
-output "availability_zone" {
-  description = "The availability zone used by the subnet"
-  value       = aws_subnet.main.availability_zone
 }
 
 output "s3_bucket_name" {

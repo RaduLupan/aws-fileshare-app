@@ -35,20 +35,24 @@ resource "aws_security_group" "ecs" {
     Name        = "ecs_security_group"
     Environment = var.environment
   }
+}
 
-  ingress {
-    from_port   = 5000
-    to_port     = 5000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow from all sources (this is common for testing, but tighten for production to only allow necessary IPs)
-  }
+# Allow inbound traffic on port 5000 (HTTP) from all sources
+# This rule allows the ECS service to receive HTTP requests on port 5000
+resource "aws_vpc_security_group_ingress_rule" "allow_tcp_5000" {
+  security_group_id = aws_security_group.ecs.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 5000
+  ip_protocol       = "tcp"
+  to_port           = 5000
+}
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+# Allow all outbound traffic from the ECS security group
+# This rule allows the ECS service to communicate with other AWS services and the internet
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
+  security_group_id = aws_security_group.ecs.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" # semantically equivalent to all ports
 }
 
 # Create an ECS cluster
@@ -126,7 +130,7 @@ resource "aws_ecs_service" "flask" {
   launch_type     = "FARGATE"
   network_configuration {
     assign_public_ip = true
-    subnets         = [aws_subnet.main.id]
+    subnets         = [module.vpc.public_subnets[0]]
     security_groups = [aws_security_group.ecs.id]
   }
 }
