@@ -14,13 +14,9 @@ def index():
         # Get the AWS STS caller identity
         caller_identity = sts_client.get_caller_identity()
 
-        # List S3 buckets
-        buckets = s3_client.list_buckets()
-
         # Prepare response data
         response_data = {
-            'CallerIdentity': caller_identity,
-            'Buckets': [bucket['Name'] for bucket in buckets['Buckets']]
+            'CallerIdentity': caller_identity
         }
 
         return jsonify(response_data), 200
@@ -37,7 +33,7 @@ def upload_file():
     try:
         # Using the boto3 client for S3
         s3_client = boto3.client('s3')
-        s3_client.upload_fileobj(file, "my-wetransfer-clone-bucket-8863c3540f57", file.filename)
+        s3_client.upload_fileobj(file, "my-wetransfer-clone-bucket-91c6fb37f8c2", file.filename)
         return jsonify({'message': 'File successfully uploaded'}), 200
     except Exception as e:
         print(f"Upload failed: {e}")
