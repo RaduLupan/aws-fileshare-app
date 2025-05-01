@@ -1,12 +1,32 @@
-import os
 import boto3
 from flask import Flask, request, jsonify
 
+# Initialize the Flask application
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "Welcome to my Flask App!"
+    # Initialize boto3 clients
+    sts_client = boto3.client('sts')
+    s3_client = boto3.client('s3')
+
+    try:
+        # Get the AWS STS caller identity
+        caller_identity = sts_client.get_caller_identity()
+
+        # List S3 buckets
+        buckets = s3_client.list_buckets()
+
+        # Prepare response data
+        response_data = {
+            'CallerIdentity': caller_identity,
+            'Buckets': [bucket['Name'] for bucket in buckets['Buckets']]
+        }
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -15,13 +35,9 @@ def upload_file():
 
     file = request.files['file']
     try:
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_DEFAULT_REGION')
-        )
-        s3_client.upload_fileobj(file, "my-wetransfer-clone-bucket-0319cf63dee7", file.filename)
+        # Using the boto3 client for S3
+        s3_client = boto3.client('s3')
+        s3_client.upload_fileobj(file, "my-wetransfer-clone-bucket-8863c3540f57", file.filename)
         return jsonify({'message': 'File successfully uploaded'}), 200
     except Exception as e:
         print(f"Upload failed: {e}")
