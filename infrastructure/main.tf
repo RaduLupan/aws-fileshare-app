@@ -80,10 +80,61 @@ resource "aws_iam_role" "ecs_task_execution" {
 
 # Attach the AmazonECSTaskExecutionRolePolicy managed policy to the role
 # This policy allows ECS tasks to pull images from ECR and write logs to CloudWatch
-resource "aws_iam_policy_attachment" "ecs_task_execution_policy" {
-  name       = "ecs_task_execution_policy"
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-  roles      = [aws_iam_role.ecs_task_execution.name]
+  role      = aws_iam_role.ecs_task_execution.name
+}
+
+# Create a new IAM role specifically for the Flask application task
+resource "aws_iam_role" "flask_app_task" {
+  name               = "flask_app_task_role" # Choose a descriptive name
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          # This allows the containers in your task to assume this role
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Define the policy containing only the S3 permissions needed by the application
+resource "aws_iam_policy" "flask_app_s3_access" {
+  name        = "FlaskS3AccessPolicy" # Choose a descriptive name
+  description = "Allows Flask app task to access specific S3 bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          # Replace aws_s3_bucket.main.arn with your actual S3 bucket resource reference if different
+          aws_s3_bucket.main.arn,
+          "${aws_s3_bucket.main.arn}/*"
+        ]
+      }
+      # Note: Removed CloudWatch Logs permissions here.
+      # The ecs_task_execution_role handles basic logging via the awslogs driver.
+      # Only add log permissions here if your *application code* specifically needs to interact with the CloudWatch Logs API (e.g., create streams directly).
+    ]
+  })
+}
+
+# Attach the S3 access policy to the new Flask application task role
+resource "aws_iam_role_policy_attachment" "flask_app_s3_policy_attachment" {
+  policy_arn = aws_iam_policy.flask_app_s3_access.arn
+  role       = aws_iam_role.flask_app_task.name
 }
 
 # Define the CloudWatch Log Group
@@ -91,6 +142,8 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
   name              = "/ecs/my-flask-app"
   retention_in_days = 30  # Adjust the retention period as necessary
 }
+
+# --- ECS Task Definition (Updated) ---
 
 # Create the ECS task definition
 resource "aws_ecs_task_definition" "flask" {
@@ -100,7 +153,11 @@ resource "aws_ecs_task_definition" "flask" {
   cpu                      = "256"
   memory                   = "512"
 
+  # Role for ECS agent (pulling images, basic logs) - Correctly set
   execution_role_arn = aws_iam_role.ecs_task_execution.arn
+
+  # *** ADDED: Role for your application container (accessing S3, etc.) ***
+  task_role_arn      = aws_iam_role.flask_app_task.arn
 
   container_definitions = jsonencode([{
     name  = "flask-app-container"
@@ -113,12 +170,19 @@ resource "aws_ecs_task_definition" "flask" {
     logConfiguration = {
       logDriver = "awslogs"
       options = {
-        awslogs-group         = "${aws_cloudwatch_log_group.ecs_log_group.name}"
+        # Ensure aws_cloudwatch_log_group.ecs_log_group is defined elsewhere in your Terraform code
+        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group.name
         awslogs-region        = var.region
         awslogs-stream-prefix = "ecs"
       }
     }
   }])
+
+  # Ensure dependencies are correctly ordered if needed, e.g.:
+  # depends_on = [
+  #   aws_iam_role_policy_attachment.flask_app_s3_policy_attachment
+  # ]
+  # (Usually Terraform infers dependencies correctly based on ARN usage)
 }
 
 # Create the ECS service
@@ -156,37 +220,4 @@ resource "aws_s3_bucket_versioning" "versioning" {
   versioning_configuration {
     status = "Enabled"
   }
-}
-
-# Create policy for the task execution role to access the S3 bucket
-resource "aws_iam_role_policy" "s3_and_logs_access" {
-  name   = "S3AndLogsAccessPolicy"
-  role   = aws_iam_role.ecs_task_execution.name
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "${aws_s3_bucket.main.arn}",
-          "${aws_s3_bucket.main.arn}/*"
-        ]
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
 }
