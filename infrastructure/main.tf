@@ -55,6 +55,43 @@ resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   ip_protocol       = "-1" # semantically equivalent to all ports
 }
 
+# Create a security group for the Application Load Balancer 
+resource "aws_security_group" "alb" {
+  name        = "flask_app_alb_security_group"
+  description = "Allow HTTP inbound traffic to ALB"
+  vpc_id      = module.vpc.vpc_id
+  tags = {
+    Name        = "alb_security_group"
+    Environment = var.environment
+  }
+}
+
+# Allow inbound traffic on port 80 (HTTP) from all sources
+resource "aws_vpc_security_group_ingress_rule" "allow_tcp_80" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 80
+  ip_protocol       = "tcp"
+  to_port           = 80
+}
+
+# Allow inbound traffic on port 443 (HTTPS) from all sources
+resource "aws_vpc_security_group_ingress_rule" "allow_tcp_443" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  from_port         = 443
+  ip_protocol       = "tcp"
+  to_port           = 443
+}
+
+# Allow all outbound traffic from the ECS security group
+# This rule allows the ECS service to communicate with other AWS services and the internet
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4_2" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" # semantically equivalent to all ports
+}
+
 # Create an ECS cluster
 # This cluster will be used to run the ECS Fargate tasks
 resource "aws_ecs_cluster" "main" {
