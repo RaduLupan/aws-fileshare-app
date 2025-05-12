@@ -41,10 +41,11 @@ resource "aws_security_group" "ecs" {
 # This rule allows the ECS service to receive HTTP requests on port 5000
 resource "aws_vpc_security_group_ingress_rule" "allow_tcp_5000" {
   security_group_id = aws_security_group.ecs.id
-  cidr_ipv4         = "0.0.0.0/0"
+  
   from_port         = 5000
   ip_protocol       = "tcp"
   to_port           = 5000
+  referenced_security_group_id = aws_security_group.alb.id # Allow traffic from the ALB security group
 }
 
 # Allow all outbound traffic from the ECS security group
