@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from botocore.exceptions import BotoCoreError, NoCredentialsError, PartialCredentialsError
 
 # Load environment variables
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-bucket-91c6fb37f8c2')
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-bucket-2d3865bcce5e')
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 def index():
     # Prepare a simple welcome message
     welcome_message = {
-        'message': 'Welcome to We Transfer Clone. Use curl -X POST http://<IP>:5000/upload -F "file=<file_name>" to upload.'
+        'message': 'Welcome to We Transfer Clone API',
+        'description': 'This API allows you to upload files to S3.',
     }
     return jsonify(welcome_message), 200
 
