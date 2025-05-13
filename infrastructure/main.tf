@@ -13,10 +13,11 @@ module "vpc" {
   azs = ["us-east-2a", "us-east-2b"]
   public_subnets = [cidrsubnet(var.vpc_cidr, 8, 0), cidrsubnet(var.vpc_cidr, 8, 1)]
 
-  # Prevent creation of private subnets and NAT gateways
-  private_subnets = []
-  enable_nat_gateway = false
-
+  private_subnets = [cidrsubnet(var.vpc_cidr, 8, 2), cidrsubnet(var.vpc_cidr, 8, 3)]
+  
+  enable_nat_gateway = true
+  single_nat_gateway = true # This ensures only one NAT Gateway is created
+  
   manage_default_network_acl = true
 
   tags = {
@@ -290,13 +291,35 @@ resource "aws_ecs_service" "flask" {
   name            = "flask-app-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.flask.arn
-  desired_count   = 1
+  desired_count   = 2
   launch_type     = "FARGATE"
+
+  # Enable ECS-managed health checks integrated with ALB health checks
+  health_check_grace_period_seconds = 60 # Time for task to start before health checks begin
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent       = 200
+
   network_configuration {
-    assign_public_ip = true
-    subnets         = [module.vpc.public_subnets[0]]
+    
+    # Tasks no longer need public IPs; they are fronted by the ALB
+    assign_public_ip = false
+    subnets         = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]] # Use private subnest for better security
     security_groups = [aws_security_group.ecs.id]
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.flask_app_tg.arn
+    container_name   = "flask-app-container" # From your task definition                           
+    container_port   = 5000 # Ensure this matches the port in your task definition
+  }
+
+  # Optional: Ensure listener is created before service attempts to register
+  # Terraform usually handles this via ARN dependencies, but explicit depends_on can be used if needed.
+  # depends_on = [aws_lb_listener.http_listener]
+
+  # Propagate tags to ECS-managed ENIs. Helpful for cost allocation & resource tracking.
+  enable_ecs_managed_tags = true
+  propagate_tags          = "SERVICE" # or "TASK_DEFINITION"
 }
 
 # Create a random ID for the S3 bucket name to ensure uniqueness
