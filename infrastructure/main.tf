@@ -85,6 +85,79 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tcp_443" {
   to_port           = 443
 }
 
+# Create an Application Load Balancer (ALB)
+# This ALB will distribute incoming traffic to the ECS service
+resource "aws_lb" "flask_app_lb" {
+  name               = "flask-app-lb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = module.vpc.public_subnets # Use at least two public subnets in different AZs
+
+  enable_deletion_protection = false # Consider setting to true for production
+
+  tags = {
+    Name = "flask-app-lb"
+    Environment = var.environment
+  }
+}
+# Create a Target Group for the ALB
+# This target group will route traffic to the ECS service
+resource "aws_lb_target_group" "flask_app_tg" {
+  name        = "flask-app-tg"
+  port        = 5000 # Port your Flask container listens on
+  protocol    = "HTTP"
+  vpc_id      = module.vpc.vpc_id # Replace with your actual VPC ID reference
+  target_type = "ip"          # Required for Fargate
+
+  health_check {
+    enabled             = true
+    path                = "/" # Your Flask app's root path, ensure it returns 200 OK
+    protocol            = "HTTP"
+    port                = "traffic-port" # Checks on the same port as traffic
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200" # Expect HTTP 200 for a healthy target
+  }
+
+  tags = {
+    Name = "flask-app-tg"
+    Environment = var.environment
+  }
+}
+
+# Create a HTTP listener for the ALB
+# This listener will forward HTTP traffic to the target group
+resource "aws_lb_listener" "http_listener" {
+  load_balancer_arn = aws_lb.flask_app_lb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.flask_app_tg.arn
+  }
+}
+
+/* # Create a HTTPS listener for HTTPS traffic
+# This listener will forward HTTPS traffic to the target group
+resource "aws_lb_listener" "https_listener" {
+  load_balancer_arn = aws_lb.flask_app_lb.arn
+  port              = 443
+  protocol          = "HTTPS"
+
+  ssl_policy = "ELBSecurityPolicy-2016-08" # Choose an appropriate SSL policy
+
+  certificate_arn = var.certificate_arn # Replace with your ACM certificate ARN
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.flask_app_tg.arn
+  }
+}
+ */
 # Allow all outbound traffic from the ECS security group
 # This rule allows the ECS service to communicate with other AWS services and the internet
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4_2" {
@@ -162,9 +235,6 @@ resource "aws_iam_policy" "flask_app_s3_access" {
           "${aws_s3_bucket.main.arn}/*"
         ]
       }
-      # Note: Removed CloudWatch Logs permissions here.
-      # The ecs_task_execution_role handles basic logging via the awslogs driver.
-      # Only add log permissions here if your *application code* specifically needs to interact with the CloudWatch Logs API (e.g., create streams directly).
     ]
   })
 }
@@ -181,8 +251,6 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
   retention_in_days = 30  # Adjust the retention period as necessary
 }
 
-# --- ECS Task Definition (Updated) ---
-
 # Create the ECS task definition
 resource "aws_ecs_task_definition" "flask" {
   family                   = "flask-app-task"
@@ -194,7 +262,7 @@ resource "aws_ecs_task_definition" "flask" {
   # Role for ECS agent (pulling images, basic logs) - Correctly set
   execution_role_arn = aws_iam_role.ecs_task_execution.arn
 
-  # *** ADDED: Role for your application container (accessing S3, etc.) ***
+  # Role for your application container (accessing S3, etc.)
   task_role_arn      = aws_iam_role.flask_app_task.arn
 
   container_definitions = jsonencode([{
@@ -215,12 +283,6 @@ resource "aws_ecs_task_definition" "flask" {
       }
     }
   }])
-
-  # Ensure dependencies are correctly ordered if needed, e.g.:
-  # depends_on = [
-  #   aws_iam_role_policy_attachment.flask_app_s3_policy_attachment
-  # ]
-  # (Usually Terraform infers dependencies correctly based on ARN usage)
 }
 
 # Create the ECS service
