@@ -5,6 +5,7 @@ const UploadForm = () => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
+  const [downloadUrl, setDownloadUrl] = useState('');
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -22,6 +23,7 @@ const UploadForm = () => {
     try {
       setLoading(true);
       setResponseMessage('');
+      setDownloadUrl('');
 
       // Replace this URL with your backend API endpoint
       const response = await fetch('http://localhost:5000/upload', {
@@ -33,8 +35,15 @@ const UploadForm = () => {
       if (response.ok) {
         const result = await response.json();
         setResponseMessage('File uploaded successfully!');
-        // You might want to handle the result, for example, displaying a download link
-        console.log(result); // Placeholder: show the result in the console
+
+        // Fetch the download link using the returned file name
+        const linkResponse = await fetch(`http://localhost:5000/get-download-link?file_name=${result.file_name}`);
+        if (linkResponse.ok) {
+          const linkResult = await linkResponse.json();
+          setDownloadUrl(linkResult.download_url);
+        } else {
+          setResponseMessage('Failed to generate download link.');
+        }
       } else {
         setResponseMessage('File upload failed.');
       }
@@ -71,19 +80,14 @@ const UploadForm = () => {
         {loading ? 'Uploading...' : 'Submit'}
       </button>
       {responseMessage && <p>{responseMessage}</p>}
+      {downloadUrl && (
+        <div>
+          <p>Your download link:</p>
+          <a href={downloadUrl} target="_blank" rel="noopener noreferrer">{downloadUrl}</a>
+        </div>
+      )}
     </form>
   );
 };
 
 export default UploadForm;
-
-/* Explanation of Added Code
-FormData Object: This object is used to construct key/value pairs representing form fields and their values, allowing you to send them using the fetch API.
-
-fetch API: Used to send a POST request. You can replace 'http://localhost:5000/upload' with your actual backend endpoint.
-
-Response Handling: After the request completes, the code checks if it was successful (response.ok) and updates the user with a success or error message.
-
-Loading State: A loading state is used to disable the button while the file is uploading, providing feedback to the user.
-
-This setup should work well in connecting your form to your backend, allowing file uploads. Once your backend is operational, you’ll just need to point the POST request to the correct URL endpoint. */
