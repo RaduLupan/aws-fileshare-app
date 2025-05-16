@@ -3,12 +3,16 @@ import boto3
 import logging
 from flask import Flask, request, jsonify
 from botocore.exceptions import BotoCoreError, NoCredentialsError, PartialCredentialsError, ClientError
+from flask_cors import CORS
 
 # Load environment variables
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-bucket-2d3865bcce5e')
 
 # Initialize the Flask application
 app = Flask(__name__)
+
+# This adds CORS support
+CORS(app)  
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
