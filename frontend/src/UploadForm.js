@@ -26,7 +26,7 @@ const UploadForm = () => {
       setDownloadUrl('');
 
       // Replace this URL with your backend API endpoint
-      const response = await fetch('http://localhost:5000/upload', {
+      const response = await fetch('http://flask-app-lb-526872237.us-east-2.elb.amazonaws.com/upload', {
         method: 'POST',
         body: formData,
       });
@@ -37,7 +37,7 @@ const UploadForm = () => {
         setResponseMessage('File uploaded successfully!');
 
         // Fetch the download link using the returned file name
-        const linkResponse = await fetch(`http://localhost:5000/get-download-link?file_name=${result.file_name}`);
+        const linkResponse = await fetch(`http://flask-app-lb-526872237.us-east-2.elb.amazonaws.com/get-download-link?file_name=${result.file_name}`);
         if (linkResponse.ok) {
           const linkResult = await linkResponse.json();
           setDownloadUrl(linkResult.download_url);
