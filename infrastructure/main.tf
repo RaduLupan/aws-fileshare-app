@@ -26,9 +26,9 @@ module "vpc" {
   }
 }
 
-# Create a security group for the ECS service
+# BACKEND - Create a security group for the ECS service
 # This security group allows inbound traffic on port 5000 (HTTP) from all sources
-resource "aws_security_group" "ecs" {
+resource "aws_security_group" "backend_ecs" {
   name        = "ecs_security_group"
   description = "ECS security group"
   vpc_id      = module.vpc.vpc_id
@@ -38,10 +38,10 @@ resource "aws_security_group" "ecs" {
   }
 }
 
-# Allow inbound traffic on port 5000 (HTTP) from all sources
+# BACKEND - Allow inbound traffic on port 5000 (HTTP) from all sources
 # This rule allows the ECS service to receive HTTP requests on port 5000
 resource "aws_vpc_security_group_ingress_rule" "allow_tcp_5000" {
-  security_group_id = aws_security_group.ecs.id
+  security_group_id = aws_security_group.backend_ecs.id
   
   from_port         = 5000
   ip_protocol       = "tcp"
@@ -49,15 +49,15 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tcp_5000" {
   referenced_security_group_id = aws_security_group.alb.id # Allow traffic from the ALB security group
 }
 
-# Allow all outbound traffic from the ECS security group
+# BACKEND - Allow all outbound traffic from the ECS security group
 # This rule allows the ECS service to communicate with other AWS services and the internet
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
-  security_group_id = aws_security_group.ecs.id
+  security_group_id = aws_security_group.backend_ecs.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1" # semantically equivalent to all ports
 }
 
-# Create a security group for the Application Load Balancer 
+# BACKEND - Create a security group for the Application Load Balancer 
 resource "aws_security_group" "alb" {
   name        = "flask_app_alb_security_group"
   description = "Allow HTTP inbound traffic to ALB"
@@ -68,7 +68,7 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# Allow inbound traffic on port 80 (HTTP) from all sources
+# BACKEND - Allow inbound traffic on port 80 (HTTP) from all sources
 resource "aws_vpc_security_group_ingress_rule" "allow_tcp_80" {
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -77,7 +77,7 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tcp_80" {
   to_port           = 80
 }
 
-# Allow inbound traffic on port 443 (HTTPS) from all sources
+# BACKEND - Allow inbound traffic on port 443 (HTTPS) from all sources
 resource "aws_vpc_security_group_ingress_rule" "allow_tcp_443" {
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -86,7 +86,15 @@ resource "aws_vpc_security_group_ingress_rule" "allow_tcp_443" {
   to_port           = 443
 }
 
-# Create an Application Load Balancer (ALB)
+# BACKEND - Allow all outbound traffic from the ECS security group
+# This rule allows the ECS service to communicate with other AWS services and the internet
+resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4_2" {
+  security_group_id = aws_security_group.alb.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1" # semantically equivalent to all ports
+}
+
+# BACKEND - Create an Application Load Balancer (ALB)
 # This ALB will distribute incoming traffic to the ECS service
 resource "aws_lb" "flask_app_lb" {
   name               = "flask-app-lb"
@@ -102,7 +110,7 @@ resource "aws_lb" "flask_app_lb" {
     Environment = var.environment
   }
 }
-# Create a Target Group for the ALB
+# BACKEND - Create a Target Group for the ALB
 # This target group will route traffic to the ECS service
 resource "aws_lb_target_group" "flask_app_tg" {
   name        = "flask-app-tg"
@@ -129,7 +137,7 @@ resource "aws_lb_target_group" "flask_app_tg" {
   }
 }
 
-# Create a HTTP listener for the ALB
+# BACKEND - Create a HTTP listener for the ALB
 # This listener will forward HTTP traffic to the target group
 resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_lb.flask_app_lb.arn
@@ -159,13 +167,6 @@ resource "aws_lb_listener" "https_listener" {
   }
 }
  */
-# Allow all outbound traffic from the ECS security group
-# This rule allows the ECS service to communicate with other AWS services and the internet
-resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4_2" {
-  security_group_id = aws_security_group.alb.id
-  cidr_ipv4         = "0.0.0.0/0"
-  ip_protocol       = "-1" # semantically equivalent to all ports
-}
 
 # Create an ECS cluster
 # This cluster will be used to run the ECS Fargate tasks
@@ -247,12 +248,12 @@ resource "aws_iam_role_policy_attachment" "flask_app_s3_policy_attachment" {
 }
 
 # Define the CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "ecs_log_group" {
+resource "aws_cloudwatch_log_group" "ecs_log_group_backend" {
   name              = "/ecs/my-flask-app"
   retention_in_days = 30  # Adjust the retention period as necessary
 }
 
-# Create the ECS task definition
+# BACKEND - Create the ECS task definition
 resource "aws_ecs_task_definition" "flask" {
   family                   = "flask-app-task"
   network_mode             = "awsvpc"
@@ -268,7 +269,7 @@ resource "aws_ecs_task_definition" "flask" {
 
   container_definitions = jsonencode([{
     name  = "flask-app-container"
-    image = var.ecr_image_uri
+    image = var.ecr_image_uri_backend
     essential = true
     portMappings = [{
       containerPort = 5000
@@ -278,7 +279,7 @@ resource "aws_ecs_task_definition" "flask" {
       logDriver = "awslogs"
       options = {
         # Ensure aws_cloudwatch_log_group.ecs_log_group is defined elsewhere in your Terraform code
-        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group.name
+        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group_backend.name
         awslogs-region        = var.region
         awslogs-stream-prefix = "ecs"
       }
@@ -304,7 +305,7 @@ resource "aws_ecs_service" "flask" {
     # Tasks no longer need public IPs; they are fronted by the ALB
     assign_public_ip = false
     subnets         = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]] # Use private subnest for better security
-    security_groups = [aws_security_group.ecs.id]
+    security_groups = [aws_security_group.backend_ecs.id]
   }
 
   load_balancer {
