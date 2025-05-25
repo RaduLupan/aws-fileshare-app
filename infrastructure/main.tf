@@ -323,100 +323,12 @@ resource "aws_ecs_service" "flask" {
   propagate_tags          = "SERVICE" # or "TASK_DEFINITION"
 }
 
-# FRONTEND - Define the CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "ecs_log_group_frontend" {
-  name              = "/ecs/my-react-app"
-  retention_in_days = 30 # Adjust the retention period as necessary
-}
-
-# FRONTEND - Create a new IAM role specifically for the React application task
-resource "aws_iam_role" "react_app_task" {
-  name = "react_app_task_role"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          # This allows the containers in your task to assume this role
-          Service = "ecs-tasks.amazonaws.com"
-        }
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-}
-
-# FRONTEND - Define the policy containing only the permissions needed by the React application
-resource "aws_iam_policy" "react_app_s3_access" {
-  name        = "ReactS3AccessPolicy"
-  description = "Allows React app task to access specific S3 bucket"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:PutObject",
-          "s3:GetObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          aws_s3_bucket.main.arn,
-          "${aws_s3_bucket.main.arn}/*"
-        ]
-      }
-    ]
-  })
-}
-
-# Attach the S3 access policy to the new React application task role
-resource "aws_iam_role_policy_attachment" "react_app_s3_policy_attachment" {
-  policy_arn = aws_iam_policy.react_app_s3_access.arn
-  role       = aws_iam_role.react_app_task.name
-}
-
-resource "aws_ecs_task_definition" "react" {
-  family                   = "react-app-task"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
-
-  # Role for ECS agent (pulling images, basic logs)
-  execution_role_arn = aws_iam_role.ecs_task_execution.arn
-
-  # Role for your application container (accessing S3, etc.)
-  task_role_arn = aws_iam_role.react_app_task.arn
-
-  container_definitions = jsonencode([{
-    name      = "react-app-container"
-    image     = var.ecr_image_uri_frontend
-    essential = true
-    portMappings = [{
-      containerPort = 80
-      hostPort      = 80
-      protocol      = "tcp"
-    }]
-    logConfiguration = {
-      logDriver = "awslogs"
-      options = {
-        # Ensure aws_cloudwatch_log_group.ecs_log_group is defined elsewhere in your Terraform code
-        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group_frontend.name
-        awslogs-region        = var.region
-        awslogs-stream-prefix = "ecs"
-      }
-    }
-  }])
-}
-
 # Create a random ID for the S3 bucket name to ensure uniqueness
 resource "random_id" "bucket_suffix" {
   byte_length = 6 # 6 bytes * 2 hex chars per byte = 12 hex chars
 }
 
-# Create an S3 bucket for file uploads
+# BACKEND - Create an S3 bucket for file uploads
 resource "aws_s3_bucket" "main" {
   bucket = "my-wetransfer-clone-bucket-${random_id.bucket_suffix.hex}"
 
