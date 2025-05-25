@@ -11,6 +11,11 @@ variable "ecr_image_uri_backend" {
   description = "ECR image URI for the Flask app"
   type        = string
 }
+
+variable "ecr_image_uri_frontend" {
+  description = "ECR image URI for the React app"
+  type        = string
+}
 #---------------------------------------------------------------
 # OPTIONAL PARAMETERS: These parameters have resonable defaults.
 #---------------------------------------------------------------

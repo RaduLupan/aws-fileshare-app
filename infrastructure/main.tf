@@ -10,18 +10,18 @@ module "vpc" {
   name = "ecs-vpc"
   cidr = var.vpc_cidr
 
-  azs = ["us-east-2a", "us-east-2b"]
+  azs            = ["us-east-2a", "us-east-2b"]
   public_subnets = [cidrsubnet(var.vpc_cidr, 8, 0), cidrsubnet(var.vpc_cidr, 8, 1)]
 
   private_subnets = [cidrsubnet(var.vpc_cidr, 8, 2), cidrsubnet(var.vpc_cidr, 8, 3)]
-  
+
   enable_nat_gateway = true
   single_nat_gateway = true # This ensures only one NAT Gateway is created
-  
+
   manage_default_network_acl = true
 
   tags = {
-    Terraform = "true"
+    Terraform   = "true"
     Environment = "dev"
   }
 }
@@ -42,10 +42,10 @@ resource "aws_security_group" "backend_ecs" {
 # This rule allows the ECS service to receive HTTP requests on port 5000
 resource "aws_vpc_security_group_ingress_rule" "allow_tcp_5000" {
   security_group_id = aws_security_group.backend_ecs.id
-  
-  from_port         = 5000
-  ip_protocol       = "tcp"
-  to_port           = 5000
+
+  from_port                    = 5000
+  ip_protocol                  = "tcp"
+  to_port                      = 5000
   referenced_security_group_id = aws_security_group.alb.id # Allow traffic from the ALB security group
 }
 
@@ -106,7 +106,7 @@ resource "aws_lb" "flask_app_lb" {
   enable_deletion_protection = false # Consider setting to true for production
 
   tags = {
-    Name = "flask-app-lb"
+    Name        = "flask-app-lb"
     Environment = var.environment
   }
 }
@@ -117,7 +117,7 @@ resource "aws_lb_target_group" "flask_app_tg" {
   port        = 5000 # Port your Flask container listens on
   protocol    = "HTTP"
   vpc_id      = module.vpc.vpc_id # Replace with your actual VPC ID reference
-  target_type = "ip"          # Required for Fargate
+  target_type = "ip"              # Required for Fargate
 
   health_check {
     enabled             = true
@@ -132,7 +132,7 @@ resource "aws_lb_target_group" "flask_app_tg" {
   }
 
   tags = {
-    Name = "flask-app-tg"
+    Name        = "flask-app-tg"
     Environment = var.environment
   }
 }
@@ -176,7 +176,7 @@ resource "aws_ecs_cluster" "main" {
 
 # Create an IAM role for ECS task execution
 resource "aws_iam_role" "ecs_task_execution" {
-  name               = "ecs_task_execution_role"
+  name = "ecs_task_execution_role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -195,12 +195,12 @@ resource "aws_iam_role" "ecs_task_execution" {
 # This policy allows ECS tasks to pull images from ECR and write logs to CloudWatch
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-  role      = aws_iam_role.ecs_task_execution.name
+  role       = aws_iam_role.ecs_task_execution.name
 }
 
-# Create a new IAM role specifically for the Flask application task
+# BACKEND - Create a new IAM role specifically for the Flask application task
 resource "aws_iam_role" "flask_app_task" {
-  name               = "flask_app_task_role" # Choose a descriptive name
+  name = "flask_app_task_role" # Choose a descriptive name
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -216,7 +216,7 @@ resource "aws_iam_role" "flask_app_task" {
   })
 }
 
-# Define the policy containing only the S3 permissions needed by the application
+# BACKEND - Define the policy containing only the S3 permissions needed by the application
 resource "aws_iam_policy" "flask_app_s3_access" {
   name        = "FlaskS3AccessPolicy" # Choose a descriptive name
   description = "Allows Flask app task to access specific S3 bucket"
@@ -247,10 +247,10 @@ resource "aws_iam_role_policy_attachment" "flask_app_s3_policy_attachment" {
   role       = aws_iam_role.flask_app_task.name
 }
 
-# Define the CloudWatch Log Group
+# BACKEND - Define the CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "ecs_log_group_backend" {
   name              = "/ecs/my-flask-app"
-  retention_in_days = 30  # Adjust the retention period as necessary
+  retention_in_days = 30 # Adjust the retention period as necessary
 }
 
 # BACKEND - Create the ECS task definition
@@ -261,15 +261,15 @@ resource "aws_ecs_task_definition" "flask" {
   cpu                      = "256"
   memory                   = "512"
 
-  # Role for ECS agent (pulling images, basic logs) - Correctly set
+  # Role for ECS agent (pulling images, basic logs)
   execution_role_arn = aws_iam_role.ecs_task_execution.arn
 
   # Role for your application container (accessing S3, etc.)
-  task_role_arn      = aws_iam_role.flask_app_task.arn
+  task_role_arn = aws_iam_role.flask_app_task.arn
 
   container_definitions = jsonencode([{
-    name  = "flask-app-container"
-    image = var.ecr_image_uri_backend
+    name      = "flask-app-container"
+    image     = var.ecr_image_uri_backend
     essential = true
     portMappings = [{
       containerPort = 5000
@@ -287,7 +287,7 @@ resource "aws_ecs_task_definition" "flask" {
   }])
 }
 
-# Create the ECS service
+# BACKEND - Create the ECS service
 resource "aws_ecs_service" "flask" {
   name            = "flask-app-service"
   cluster         = aws_ecs_cluster.main.id
@@ -296,22 +296,22 @@ resource "aws_ecs_service" "flask" {
   launch_type     = "FARGATE"
 
   # Enable ECS-managed health checks integrated with ALB health checks
-  health_check_grace_period_seconds = 60 # Time for task to start before health checks begin
+  health_check_grace_period_seconds  = 60 # Time for task to start before health checks begin
   deployment_minimum_healthy_percent = 100
-  deployment_maximum_percent       = 200
+  deployment_maximum_percent         = 200
 
   network_configuration {
-    
+
     # Tasks no longer need public IPs; they are fronted by the ALB
     assign_public_ip = false
-    subnets         = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]] # Use private subnest for better security
-    security_groups = [aws_security_group.backend_ecs.id]
+    subnets          = [module.vpc.private_subnets[0], module.vpc.private_subnets[1]] # Use private subnest for better security
+    security_groups  = [aws_security_group.backend_ecs.id]
   }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.flask_app_tg.arn
     container_name   = "flask-app-container" # From your task definition                           
-    container_port   = 5000 # Ensure this matches the port in your task definition
+    container_port   = 5000                  # Ensure this matches the port in your task definition
   }
 
   # Optional: Ensure listener is created before service attempts to register
@@ -321,6 +321,94 @@ resource "aws_ecs_service" "flask" {
   # Propagate tags to ECS-managed ENIs. Helpful for cost allocation & resource tracking.
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE" # or "TASK_DEFINITION"
+}
+
+# FRONTEND - Define the CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "ecs_log_group_frontend" {
+  name              = "/ecs/my-react-app"
+  retention_in_days = 30 # Adjust the retention period as necessary
+}
+
+# FRONTEND - Create a new IAM role specifically for the React application task
+resource "aws_iam_role" "react_app_task" {
+  name = "react_app_task_role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          # This allows the containers in your task to assume this role
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# FRONTEND - Define the policy containing only the permissions needed by the React application
+resource "aws_iam_policy" "react_app_s3_access" {
+  name        = "ReactS3AccessPolicy"
+  description = "Allows React app task to access specific S3 bucket"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.main.arn,
+          "${aws_s3_bucket.main.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Attach the S3 access policy to the new React application task role
+resource "aws_iam_role_policy_attachment" "react_app_s3_policy_attachment" {
+  policy_arn = aws_iam_policy.react_app_s3_access.arn
+  role       = aws_iam_role.react_app_task.name
+}
+
+resource "aws_ecs_task_definition" "react" {
+  family                   = "react-app-task"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+
+  # Role for ECS agent (pulling images, basic logs)
+  execution_role_arn = aws_iam_role.ecs_task_execution.arn
+
+  # Role for your application container (accessing S3, etc.)
+  task_role_arn = aws_iam_role.react_app_task.arn
+
+  container_definitions = jsonencode([{
+    name      = "react-app-container"
+    image     = var.ecr_image_uri_frontend
+    essential = true
+    portMappings = [{
+      containerPort = 80
+      hostPort      = 80
+      protocol      = "tcp"
+    }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        # Ensure aws_cloudwatch_log_group.ecs_log_group is defined elsewhere in your Terraform code
+        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group_frontend.name
+        awslogs-region        = var.region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
+  }])
 }
 
 # Create a random ID for the S3 bucket name to ensure uniqueness
