@@ -233,8 +233,8 @@ resource "aws_iam_policy" "flask_app_s3_access" {
         ]
         Resource = [
           # Replace aws_s3_bucket.main.arn with your actual S3 bucket resource reference if different
-          aws_s3_bucket.main.arn,
-          "${aws_s3_bucket.main.arn}/*"
+          aws_s3_bucket.uploads_backend.arn,
+          "${aws_s3_bucket.uploads_backend.arn}/*"
         ]
       }
     ]
@@ -329,18 +329,18 @@ resource "random_id" "bucket_suffix" {
 }
 
 # BACKEND - Create an S3 bucket for file uploads
-resource "aws_s3_bucket" "main" {
-  bucket = "my-wetransfer-clone-bucket-${random_id.bucket_suffix.hex}"
+resource "aws_s3_bucket" "uploads_backend" {
+  bucket = "my-wetransfer-clone-file-uploads-${random_id.bucket_suffix.hex}"
 
   tags = {
-    Name        = "my-wetransfer-clone-bucket"
+    Name        = "my-wetransfer-clone-file-uploads"
     Environment = var.environment
   }
 }
 
 # Enable versioning on the S3 bucket
 resource "aws_s3_bucket_versioning" "versioning" {
-  bucket = aws_s3_bucket.main.id
+  bucket = aws_s3_bucket.uploads_backend.id
   versioning_configuration {
     status = "Enabled"
   }
