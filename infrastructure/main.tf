@@ -323,17 +323,19 @@ resource "aws_ecs_service" "flask" {
   propagate_tags          = "SERVICE" # or "TASK_DEFINITION"
 }
 
-# Create a random ID for the S3 bucket name to ensure uniqueness
+# Create random IDs for the S3 bucket names to ensure uniqueness
 resource "random_id" "bucket_suffix" {
+  count = 2
   byte_length = 6 # 6 bytes * 2 hex chars per byte = 12 hex chars
 }
 
 # BACKEND - Create an S3 bucket for file uploads
 resource "aws_s3_bucket" "uploads_backend" {
-  bucket = "my-wetransfer-clone-file-uploads-${random_id.bucket_suffix.hex}"
+  bucket = "my-wetransfer-clone-file-uploads-${random_id.bucket_suffix[0].hex}"
 
   tags = {
     Name        = "my-wetransfer-clone-file-uploads"
+    Service     = "Backend"
     Environment = var.environment
   }
 }
@@ -343,5 +345,137 @@ resource "aws_s3_bucket_versioning" "versioning" {
   bucket = aws_s3_bucket.uploads_backend.id
   versioning_configuration {
     status = "Enabled"
+  }
+}
+
+# FRONTEND - Create an S3 bucket for the React frontend
+# This bucket will host the static files for the React app
+resource "aws_s3_bucket" "react_frontend" {
+  bucket = "my-wetransfer-clone-react-frontend-${random_id.bucket_suffix[1].hex}"
+  tags = {
+    Environment = var.environment
+    Service     = "Frontend"
+  }
+}
+
+# S3 Bucket Public Access Block (Recommended for all S3 buckets)
+resource "aws_s3_bucket_public_access_block" "react_frontend_public_access_block" {
+  bucket = aws_s3_bucket.react_frontend.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# S3 Bucket Policy to allow CloudFront OAC access
+resource "aws_s3_bucket_policy" "frontend_bucket_policy" {
+  bucket = aws_s3_bucket.react_frontend.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.react_frontend.arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.s3_distribution.arn
+          }
+        }
+      },
+    ]
+  })
+}
+
+# FRONTEND - Create a CloudFront Origin Access Control (OAC)
+# This OAC allows CloudFront to access the S3 bucket
+resource "aws_cloudfront_origin_access_control" "frontend_oac" {
+  name                              = "my-wetransfer-clone-react-frontend-oac"
+  description                       = "OAC for S3 frontend bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# FRONTEND - Create a CloudFront distribution for the React app
+resource "aws_cloudfront_distribution" "s3_distribution" {
+  origin {
+    domain_name              = aws_s3_bucket.react_frontend.bucket_regional_domain_name
+    origin_id                = "S3-${aws_s3_bucket.react_frontend.id}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend_oac.id
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "CloudFront distribution for my-wetransfer-clone-react-frontend"
+  default_root_object = "index.html" # Your React app's entry point
+
+  # Define default cache behavior
+  default_cache_behavior {
+    target_origin_id       = "S3-${aws_s3_bucket.react_frontend.id}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    forwarded_values {
+      query_string = false # Don't forward query strings for static assets
+      headers      = []
+      cookies {
+        forward = "none"
+      }
+    }
+
+    # TTL settings (adjust as needed for your caching strategy)
+    min_ttl                = 0
+    default_ttl            = 86400 # 24 hours
+    max_ttl                = 31536000 # 1 year
+  }
+
+  # For React Router to handle client-side routing when hitting a non-existent path
+  # CloudFront will serve index.html for 403/404 errors with a 200 OK status.
+  custom_error_response {
+    error_code         = 403
+    response_page_path = "/index.html"
+    response_code      = 200
+  }
+
+  custom_error_response {
+    error_code         = 404
+    response_page_path = "/index.html"
+    response_code      = 200
+  }
+
+  # Optional: Custom domain configuration
+  # If you use a custom domain, you need an ACM certificate in us-east-1.
+  # Otherwise, comment out or remove this block.
+  # To use this, you must have an AWS Certificate Manager (ACM) certificate
+  # in the us-east-1 region for your domain (e.g., yourdomain.com).
+  # You'll need to create this certificate manually or with a separate Terraform module.
+
+  # aliases = var.custom_domain_name != "" ? [var.custom_domain_name] : []
+
+  viewer_certificate {
+    # cloudfront_default_certificate = var.custom_domain_name == "" ? true : false
+    # acm_certificate_arn            = var.custom_domain_name != "" ? var.acm_certificate_arn : null
+    cloudfront_default_certificate = true
+    ssl_support_method             = "sni-only" # Or "vip" for older clients if needed
+    minimum_protocol_version       = "TLSv1.2_2021"
+  }
+  
+  restrictions {
+    geo_restriction {
+      restriction_type = "none" # Or "whitelist", "blacklist"
+      locations        = []
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Service     = "Frontend"
   }
 }
