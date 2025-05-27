@@ -6,7 +6,7 @@ from botocore.exceptions import BotoCoreError, NoCredentialsError, PartialCreden
 from flask_cors import CORS
 
 # Load environment variables
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-bucket-2d3865bcce5e')
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-file-uploads-2c4b3d736300')
 
 # Initialize the Flask application
 app = Flask(__name__)
