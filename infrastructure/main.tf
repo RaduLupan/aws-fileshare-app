@@ -417,7 +417,8 @@ resource "aws_cloudfront_distribution" "s3_distribution" {
   # Define default cache behavior
   default_cache_behavior {
     target_origin_id       = "S3-${aws_s3_bucket.react_frontend.id}"
-    viewer_protocol_policy = "redirect-to-https"
+    # viewer_protocol_policy = "redirect-to-https"
+    viewer_protocol_policy = "allow-all" #  For testing uploads over HTTP. Change to "redirect-to-https" for production.
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
