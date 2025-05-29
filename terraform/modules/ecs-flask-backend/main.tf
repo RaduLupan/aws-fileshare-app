@@ -1,0 +1,86 @@
+# main.tf
+
+# Create an ECS cluster
+resource "aws_ecs_cluster" "this" {
+  name = "${var.project_name}-${var.environment}-cluster"
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Create the ECS task definition
+resource "aws_ecs_task_definition" "flask" {
+  family                   = "${var.project_name}-${var.environment}-flask-task"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.cpu
+  memory                   = var.memory
+
+  execution_role_arn = aws_iam_role.ecs_task_execution.arn # Role for ECS agent
+  task_role_arn      = aws_iam_role.flask_app_task.arn     # Role for your application container
+
+  container_definitions = jsonencode([{
+    name        = "${var.project_name}-${var.environment}-flask-container"
+    image       = var.ecr_image_uri
+    essential   = true
+    portMappings = [{
+      containerPort = var.container_port
+      hostPort      = var.container_port
+    }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = aws_cloudwatch_log_group.ecs_log_group.name
+        awslogs-region        = var.aws_region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
+  }])
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Create the ECS service
+resource "aws_ecs_service" "this" {
+  name            = "${var.project_name}-${var.environment}-service"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.flask.arn
+  desired_count   = var.desired_count
+  launch_type     = "FARGATE"
+
+  health_check_grace_period_seconds  = 60
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
+  network_configuration {
+    assign_public_ip = false # Tasks are behind ALB, no public IP needed
+    subnets          = var.private_subnet_ids # Deploy tasks in private subnets
+    security_groups  = [var.ecs_tasks_security_group_id]
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.this.arn
+    container_name   = "${var.project_name}-${var.environment}-flask-container"
+    container_port   = var.container_port
+  }
+
+  enable_ecs_managed_tags = true
+  propagate_tags          = "SERVICE"
+
+  # Ensure ALB and its listeners are provisioned before ECS tries to register
+  depends_on = [
+    aws_lb_listener.http,
+    # Conditionally depend on HTTPS listener if it's enabled
+    var.enable_https_listener ? aws_lb_listener.https[0] : null
+  ]
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
