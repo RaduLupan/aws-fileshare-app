@@ -15,6 +15,23 @@ provider "aws" {
 #   }
 # }
 
+# Call the network module first to create VPC, subnets, and other networking resources
+module "network" {
+  source = "../../modules/network" # Path to your network module
+
+  project_name       = var.project_name
+  environment        = var.environment
+  aws_region         = var.aws_region
+  vpc_cidr           = "10.0.0.0/16" # Or use a variable if you want this to be configurable per env
+  availability_zones = ["us-east-1a", "us-east-1b"] # Ensure this matches your region
+  # public_subnet_cidrs and private_subnet_cidrs can be left empty to use defaults
+  enable_nat_gateway = true
+  single_nat_gateway = true
+  ecs_service_port   = 5000
+  alb_http_port      = 80
+  alb_https_port     = 443
+}
+
 # Call the frontend module
 module "frontend_app" {
   source = "../../modules/s3-cloudfront-frontend" # Path to your module
@@ -30,7 +47,7 @@ module "frontend_app" {
   # acm_certificate_arn  = "arn:aws:acm:us-east-1:123456789012:certificate/abc-123"
 }
 
-# Output relevant values from the module
+# Output relevant values from the modules
 output "frontend_url" {
   description = "The URL of the deployed frontend application."
   value       = "http://${module.frontend_app.cloudfront_domain_name}" # Use http for now due to "allow-all"
@@ -39,4 +56,14 @@ output "frontend_url" {
 output "s3_bucket_name" {
   description = "The S3 bucket name for the frontend."
   value       = module.frontend_app.s3_bucket_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "The ID of the CloudFront distribution."
+  value       = module.frontend_app.cloudfront_distribution_id
+}
+
+output "vpc_id" {
+  description = "The ID of the created VPC."
+  value       = module.network.vpc_id
 }

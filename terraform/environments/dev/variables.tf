@@ -11,3 +11,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "project_name" {
+  description = "The name of your project, used as a prefix for resources."
+  type        = string
+  default     = "my-file-sharing-app"
+}
