@@ -1,4 +1,4 @@
-# cloudfront.tf
+# main.tf
 
 # Create a CloudFront distribution for the React app
 resource "aws_cloudfront_distribution" "this" {
