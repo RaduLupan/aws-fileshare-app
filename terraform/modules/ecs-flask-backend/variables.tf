@@ -44,11 +44,6 @@ variable "ecs_tasks_security_group_id" {
   type        = string
 }
 
-variable "ecr_image_uri" {
-  description = "The URI of the Docker image for the Flask application in ECR."
-  type        = string
-}
-
 #---------------------------------------------------------------
 # OPTIONAL PARAMETERS: These parameters have resonable defaults.
 #---------------------------------------------------------------

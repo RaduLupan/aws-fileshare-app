@@ -1,8 +1,22 @@
-# main.tf
+# terraform/modules/ecs-flask-backend/main.tf (Updated)
 
 # Create an ECS cluster
 resource "aws_ecs_cluster" "this" {
   name = "${var.project_name}-${var.environment}-cluster"
+
+  tags = {
+    Environment = var.environment
+    Project     = var.project_name
+  }
+}
+
+# Add ECR Repository here
+resource "aws_ecr_repository" "flask_app" {
+  name                 = "${var.project_name}-${var.environment}-flask-app"
+  image_tag_mutability = "MUTABLE" # Or "IMMUTABLE" for production environments
+  image_scanning_configuration {
+    scan_on_push = true # Enable image scanning for security
+  }
 
   tags = {
     Environment = var.environment
@@ -23,7 +37,8 @@ resource "aws_ecs_task_definition" "flask" {
 
   container_definitions = jsonencode([{
     name        = "${var.project_name}-${var.environment}-flask-container"
-    image       = var.ecr_image_uri
+    # IMPORTANT: Reference the ECR repository URI dynamically
+    image       = "${aws_ecr_repository.flask_app.repository_url}:latest" # Or use a specific tag like "v1.0.0"
     essential   = true
     portMappings = [{
       containerPort = var.container_port
@@ -72,11 +87,10 @@ resource "aws_ecs_service" "this" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
-  # Ensure ALB and its listeners are provisioned before ECS tries to register
   depends_on = [
     aws_lb_listener.http,
-    # Conditionally depend on HTTPS listener if it's enabled
-    var.enable_https_listener ? aws_lb_listener.https[0] : null
+    var.enable_https_listener ? aws_lb_listener.https[0] : null,
+    aws_ecr_repository.flask_app # Ensure ECR repo exists before task definition tries to pull
   ]
 
   tags = {
