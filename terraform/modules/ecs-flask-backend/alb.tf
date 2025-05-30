@@ -70,7 +70,7 @@ resource "aws_lb_listener" "https" {
   protocol          = "HTTPS"
 
   ssl_policy      = "ELBSecurityPolicy-2016-08" # You might want a newer policy like "ELBSecurityPolicy-TLS13-1-2-2021-04"
-  certificate_arn = var.alb_https_certificate_arn[0] # Use [0] because count creates a list
+  certificate_arn = var.alb_https_certificate_arn
 
   default_action {
     type             = "forward"

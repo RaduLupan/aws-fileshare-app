@@ -73,8 +73,8 @@ resource "aws_ecs_service" "this" {
   deployment_maximum_percent         = 200
 
   network_configuration {
-    assign_public_ip = false # Tasks are behind ALB, no public IP needed
-    subnets          = var.private_subnet_ids # Deploy tasks in private subnets
+    assign_public_ip = false
+    subnets          = var.private_subnet_ids
     security_groups  = [var.ecs_tasks_security_group_id]
   }
 
@@ -87,10 +87,12 @@ resource "aws_ecs_service" "this" {
   enable_ecs_managed_tags = true
   propagate_tags          = "SERVICE"
 
+  # CORRECT FIX for depends_on with conditional resources
+  # List the resource that might have count=0. Terraform handles it.
   depends_on = [
     aws_lb_listener.http,
-    var.enable_https_listener ? aws_lb_listener.https[0] : null,
-    aws_ecr_repository.flask_app # Ensure ECR repo exists before task definition tries to pull
+    aws_lb_listener.https, # Refer to the resource, even if its count is 0
+    aws_ecr_repository.flask_app # Still depend on ECR repo
   ]
 
   tags = {

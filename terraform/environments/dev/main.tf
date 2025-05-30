@@ -62,7 +62,7 @@ module "backend_app" {
   container_port                 = 5000
   cpu                            = 256
   memory                         = 512
-  desired_count                  = 1     # Start with 1 for dev
+  desired_count                  = 0 # Explicitly set to 0 for dev environment's initial deploy
   enable_alb_deletion_protection = false # Set to true for production environments
   alb_health_check_path          = "/"
   alb_listener_http_port         = 80
