@@ -6,17 +6,33 @@ from botocore.exceptions import BotoCoreError, NoCredentialsError, PartialCreden
 from flask_cors import CORS
 
 # Load environment variables
-S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-file-uploads-2c4b3d736300')
+# S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME', 'my-wetransfer-clone-file-uploads-2c4b3d736300') # REMOVE THIS LINE
+S3_BUCKET_NAME = os.environ.get('S3_BUCKET_NAME') # Keep this line, it will now get the name from ECS
 
 # Initialize the Flask application
 app = Flask(__name__)
 
 # This adds CORS support
-CORS(app)  
+# It's better to configure CORS more specifically in production
+# For now, allowing all for testing, but tighten this up for production
+CORS(app)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# It's good practice to ensure the bucket name is available at startup
+# This check ensures the app doesn't start if the critical env var is missing
+if not S3_BUCKET_NAME:
+    logger.error("Environment variable S3_BUCKET_NAME is not set. Flask app cannot proceed.")
+    # In a production ECS environment, this would cause the container to fail to start,
+    # which is desirable if a critical configuration is missing.
+    # For local dev, you'd need to export it: export S3_BUCKET_NAME="your-local-dev-bucket"
+    exit(1) # Exit if critical config is missing
+
+# Initialize S3 client once, as it's typically thread-safe and efficient
+# Boto3 will automatically pick up region from AWS_REGION env var or EC2 instance profile/ECS task role.
+s3_client = boto3.client('s3')
 
 @app.route('/')
 def index():
@@ -34,8 +50,7 @@ def upload_file():
 
     file = request.files['file']
     try:
-        # Using the boto3 client for S3
-        s3_client = boto3.client('s3')
+        # Use the initialized s3_client
         s3_client.upload_fileobj(file, S3_BUCKET_NAME, file.filename)
         # Return the file name for future use in generating download link
         return jsonify({'message': 'File successfully uploaded', 'file_name': file.filename}), 200
@@ -47,10 +62,10 @@ def upload_file():
         return jsonify({'error': 'An unexpected error occurred', 'message': str(e)}), 500
 
 def generate_presigned_url(file_name, expiration=3600):
-    s3_client = boto3.client('s3')
+    # Use the initialized s3_client
     try:
         response = s3_client.generate_presigned_url('get_object',
-                                                    Params={'Bucket': S3_BUCKET_NAME, 
+                                                    Params={'Bucket': S3_BUCKET_NAME,
                                                             'Key': file_name},
                                                     ExpiresIn=expiration)
     except ClientError as e:

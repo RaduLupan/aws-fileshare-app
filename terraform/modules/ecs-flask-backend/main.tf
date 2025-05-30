@@ -44,6 +44,16 @@ resource "aws_ecs_task_definition" "flask" {
       containerPort = var.container_port
       hostPort      = var.container_port
     }]
+    environment = [ # Add this block for environment variables
+      {
+        name  = "S3_BUCKET_NAME"
+        value = aws_s3_bucket.uploads_backend.bucket # Reference the bucket name here
+      },
+      {
+        name  = "AWS_REGION" # Also good to pass the region
+        value = var.aws_region
+      }
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
