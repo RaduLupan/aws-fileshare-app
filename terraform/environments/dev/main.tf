@@ -59,7 +59,6 @@ module "backend_app" {
   private_subnet_ids             = module.network.private_subnet_ids
   alb_security_group_id          = module.network.alb_security_group_id
   ecs_tasks_security_group_id    = module.network.ecs_tasks_security_group_id
-  ecr_image_uri                  = var.ecr_image_uri_flask # !!! IMPORTANT: Replace with your actual ECR image URI
   container_port                 = 5000
   cpu                            = 256
   memory                         = 512

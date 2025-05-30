@@ -1,8 +1,4 @@
 # terraform/environments/dev/variables.tf
-variable "ecr_image_uri_flask" {
-  description = "ECR image URI for the Flask app"
-  type        = string
-}
 
 variable "aws_region" {
   description = "The AWS region to deploy resources."
