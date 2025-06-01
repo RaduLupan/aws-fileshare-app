@@ -29,3 +29,8 @@ output "custom_domain_url" {
   description = "The custom domain URL if configured."
   value       = var.custom_domain_name != "" ? "https://${var.custom_domain_name}" : "N/A"
 }
+
+output "react_s3_bucket_name" {
+  description = "The name of the S3 bucket for the React frontend."
+  value       = aws_s3_bucket.this.id
+}
