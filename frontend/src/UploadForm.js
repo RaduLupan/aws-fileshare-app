@@ -6,6 +6,7 @@ const UploadForm = () => {
   const [loading, setLoading] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
   const [downloadUrl, setDownloadUrl] = useState('');
+  const BACKEND_API_URL = process.env.REACT_APP_BACKEND_API_URL; // Declare and use it
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -26,7 +27,7 @@ const UploadForm = () => {
       setDownloadUrl('');
 
       // Replace this URL with your backend API endpoint
-      const response = await fetch('http://my-file-sharing-app-dev-lb-506909745.us-east-1.elb.amazonaws.com', {
+      const response = await fetch(`${BACKEND_API_URL}/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -37,7 +38,7 @@ const UploadForm = () => {
         setResponseMessage('File uploaded successfully!');
 
         // Fetch the download link using the returned file name
-        const linkResponse = await fetch(`http://my-file-sharing-app-dev-lb-506909745.us-east-1.elb.amazonaws.com/get-download-link?file_name=${result.file_name}`);
+        const linkResponse = await fetch(`<span class="math-inline">\{BACKEND\_API\_URL\}/get\-download\-link?file\_name\=</span>{result.file_name}`);
         if (linkResponse.ok) {
           const linkResult = await linkResponse.json();
           setDownloadUrl(linkResult.download_url);
