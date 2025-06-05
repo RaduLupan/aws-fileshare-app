@@ -36,3 +36,14 @@ module "network" {
 |---|---|---|---|---|
 |`project_name`| The name of your project, used as a prefix for resources.| `string`| "my-file-sharing-app"| no|
 |`environment`| The environment name (e.g., dev, staging, prod).| `string`| | yes|
+|`aws_region`| The AWS region to deploy resources in.| `string`| | yes|
+|`vpc_cidr`| The CIDR block for the VPC.| `string`| "10.0.0.0/16"| no|
+|`availability_zones`| A list of availability zones to use for subnets.| `list(string)`| ["us-east-2a", "us-east-2b"]| no|
+|`public_subnet_cidrs`| A list of CIDR blocks for private subnets. If empty, defaults are generated.| `list(string)`| []| no|
+|`enable_nat_gateway`| Whether to create a NAT Gateway for outbound internet access from private subnets.| `bool`| `true`| no|
+|`single_nat_gateway`| Whether to create a single NAT Gateway (true) or one per public subnet (false).| `bool`| `true`| no|
+|`ecs_service_port`| The port on which the ECS service listens (e.g., Flask app port).| `number`| 5000| no|
+|`alb_http_port`| The HTTP port for the ALB.| `number`| 80| no|
+|`alb_https_port`| The HTTPS port for the ALB.| `number`| 443| no|
+
+
