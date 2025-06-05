@@ -73,8 +73,12 @@ def generate_presigned_url(file_name, expiration=3600):
                                                     Params={'Bucket': S3_BUCKET_NAME,
                                                             'Key': file_name},
                                                     ExpiresIn=expiration)
+        logger.info(f"Presigned URL generation successful for {file_name}") # New log
     except ClientError as e:
-        logger.error(e)
+        logger.error(f"ClientError generating presigned URL for {file_name}: {e}") # New log
+        return None
+    except Exception as e: # Catch any other unexpected errors here
+        logger.exception(f"Unexpected error generating presigned URL for {file_name}: {e}") # New log
         return None
 
     return response
@@ -82,13 +86,17 @@ def generate_presigned_url(file_name, expiration=3600):
 @app.route('/get-download-link', methods=['GET'])
 def get_download_link():
     file_name = request.args.get('file_name')
+    logger.info(f"Received request for download link for file: {file_name}") # New log
     if not file_name:
+        logger.warning("Download link request: File name not provided.") # New log
         return jsonify({'error': 'File name not provided'}), 400
 
     url = generate_presigned_url(file_name)
     if url:
+        logger.info(f"Successfully generated download URL for {file_name}") # New log
         return jsonify({'download_url': url}), 200
     else:
+        logger.error(f"Failed to generate download URL for {file_name}") # New log
         return jsonify({'error': 'Failed to generate download link'}), 500
 
 if __name__ == '__main__':

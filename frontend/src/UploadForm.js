@@ -38,7 +38,8 @@ const UploadForm = () => {
         setResponseMessage('File uploaded successfully!');
 
         // Fetch the download link using the returned file name
-        const linkResponse = await fetch(`<span class="math-inline">\{BACKEND\_API\_URL\}/get\-download\-link?file\_name\=</span>{result.file_name}`);
+        // THIS IS THE LINE TO FIX for the download link fetch
+        const linkResponse = await fetch(`${BACKEND_API_URL}/get-download-link?file_name=${result.file_name}`); // <--- CORRECTED LINE
         if (linkResponse.ok) {
           const linkResult = await linkResponse.json();
           setDownloadUrl(linkResult.download_url);
