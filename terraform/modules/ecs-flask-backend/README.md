@@ -65,5 +65,24 @@ module "backend_app" {
 |`memory`| The amount of memory to reserve for the task (in MiB).| `number`| 512| no|
 |`desired_count`| The desired number of running tasks for the ECS service.| `number`| 0| no|
 |`enable_alb_deletion_protection`| Whether deletion protection is enabled for the ALB.| `bool`| `false`| no|
-|`alb_health_check_path`| 
+|`alb_health_check_path`| The path for the ALB health check.| `string`| /| no|
+|`alb_listener_http_port`| The HTTP port for the ALB listener.| `number`| 80| no|
+|`enable_https_listener`| Whether to enable the HTTPS listener on the ALB.| `bool`| `false`| no|
+|`alb_listener_https_port`| The HTTPS port for the ALB listener.| `number`| 443| no|
+|`alb_https_certificate_arn`| The ARN of the ACM certificate for the ALB HTTPS listener. Required if enable_https_listener is true.| `string`| `null`| no|
+|`s3_uploads_bucket_name_prefix`| A prefix for the S3 bucket name where files will be uploaded.| `string`| "my-file-sharing-uploads"| no|
+|`log_retention_in_days`| The number of days to retain logs in CloudWatch.| `number`| 30| no|
 
+
+## Outputs
+| Name | Description |
+|------|-------------|
+| `alb_dns_name` | The DNS name of the Application Load Balancer. |
+| `alb_arn` | The ARN of the Application Load Balancer. |
+| `ecs_cluster_id` | The ID of the ECS cluster. |
+| `ecs_service_name` | The name of the ECS service. |
+| `uploads_s3_bucket_name` | The name of the S3 bucket for file uploads. |
+| `uploads_s3_bucket_arn` | The ARN of the S3 bucket for file uploads. |
+| `flask_app_task_role_arn` | The ARN of the IAM role for the Flask application task. |
+| `ecr_repository_url` | The URL of the ECR repository for the Flask application. |
+| `ecr_repository_name` | The name of the ECR repository for the Flask application. |
