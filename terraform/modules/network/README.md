@@ -35,3 +35,4 @@ module "network" {
 | Name | Description | Type | Default | Required|
 |---|---|---|---|---|
 |`project_name`| The name of your project, used as a prefix for resources.| `string`| "my-file-sharing-app"| no|
+|`environment`| The environment name (e.g., dev, staging, prod).| `string`| | yes|
