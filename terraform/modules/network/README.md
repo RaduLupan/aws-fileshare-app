@@ -46,4 +46,14 @@ module "network" {
 |`alb_http_port`| The HTTP port for the ALB.| `number`| 80| no|
 |`alb_https_port`| The HTTPS port for the ALB.| `number`| 443| no|
 
+## Outputs
+|Name | Description|
+|---|---|
+|`vpc_id`| The ID of the VPC.|
+|`public_subnet_ids`| A list of IDs of the public subnets.|
+|`private_subnet_ids`| A list of IDs of the private subnets.|
+|`alb_security_group_id`| The ID of the security group for the ALB.|
+|`ecs_tasks_security_group_id`| The ID of the security group for ECS tasks.|
+|`vpc_cidr_block`| The CIDR block of the VPC.|
+
 
