@@ -33,5 +33,5 @@ module "network" {
 
 ## Inputs
 | Name | Description | Type | Default | Required|
-|---|---|---|
+|---|---|---|---|---|
 |`project_name`| The name of your project, used as a prefix for resources.| `string`| "my-file-sharing-app"| no|
