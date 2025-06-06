@@ -1,2 +1,2 @@
-# wetransfer-clone/terraform/modules folder
+# Terraform Modules
 Contains reusable, self-contained Terraform modules.
