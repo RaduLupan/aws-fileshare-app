@@ -18,7 +18,7 @@ The application is composed of three main components:
 2.  **Backend (Flask API):** A Python Flask application handling file uploads to S3, generating presigned download URLs, and acting as the API layer.
 3.  **Infrastructure (Terraform):** All AWS resources are provisioned and managed using Terraform.
 
-# Architecture Flow Diagram
+## Architecture Flow Diagram
 
 ```
 +----------------+    +-------------------+    +-----------------+
