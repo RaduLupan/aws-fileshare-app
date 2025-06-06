@@ -34,3 +34,26 @@ module "frontend_app" {
   # alb_https_port       = module.network.alb_https_port
 }
 ```
+
+## Inputs
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|----------|
+| `bucket_name_prefix` | A prefix for the S3 bucket name. A random suffix will be appended. | `string` | `"my-file-sharing-frontend"` | no |
+| `environment` | The environment name (e.g., dev, staging, prod). | `string` | | yes |
+| `cloudfront_comment` | Comment for the CloudFront distribution. | `string` | `"CloudFront distribution for the frontend application"` | no |
+| `viewer_protocol_policy` | The protocol policy for viewers. Set to `redirect-to-https` for production. | `string` | `"allow-all"` | no |
+| `custom_domain_name` | Your custom domain name (e.g., `app.yourdomain.com`). Leave empty if not using. | `string` | `""` | no |
+| `acm_certificate_arn` | The ARN of the ACM SSL certificate for your custom domain (must be in `us-east-1`). | `string` | `""` | no |
+| `backend_alb_dns_name` | The DNS name of the backend ALB, if proxying API calls through CloudFront. | `string` | `null` | no |
+| `alb_http_port` | The HTTP port of the ALB (for CloudFront origin). | `number` | `80` | no |
+| `alb_https_port` | The HTTPS port of the ALB (for CloudFront origin). | `number` | `443` | no |
+
+## Outputs
+| Name | Description |
+|------|-------------|
+| `s3_bucket_id` | The ID of the S3 bucket. |
+| `s3_bucket_name` | The name of the S3 bucket. |
+| `cloudfront_distribution_id` | The ID of the CloudFront distribution. |
+| `cloudfront_domain_name` | The domain name of the CloudFront distribution. |
+| `cloudfront_arn` | The ARN of the CloudFront distribution. |
+| `custom_domain_url` | The custom domain URL if configured. |
