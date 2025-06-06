@@ -18,21 +18,49 @@ The application is composed of three main components:
 2.  **Backend (Flask API):** A Python Flask application handling file uploads to S3, generating presigned download URLs, and acting as the API layer.
 3.  **Infrastructure (Terraform):** All AWS resources are provisioned and managed using Terraform.
 
-+----------------+      +-------------------+      +-----------------+      +-------------------+
-|                |      |                   |      |                 |      |                   |
-|  User Browser  +------> CloudFront (CDN)  +------> S3 (Frontend)   |      |                   |
-|  (React App)   |      | (HTTP Access)     |      | (Static Hosting)|      |                   |
-+----------------+      +-------------------+      +-----------------+      |                   |
-^                         |                                        |                   |
-|  API Calls (HTTP)       |                                        |                   |
-+-------------------------+                                        |                   |
-|                                        |                   |
-|                 +----------------+     |                   |
-+-----------------> ALB (Load Balancer)+---> ECS Fargate       |
-| (HTTP Listener) | (Backend API)  |     | (Flask App)       |
-|                 +----------------+     |                   |
-|                                        |                   |
-|                 +----------------+     |                   |
-+-----------------> S3 (Uploads)         | (File Storage)    |
-| (Backend Module) |     |                   |
-+----------------+     +-------------------+
+# Architecture Flow Diagram
+
+```
++----------------+    +-------------------+    +-----------------+    +-------------------+
+|                |    |                   |    |                 |    |                   |
+| User Browser   +--> | CloudFront (CDN)  +--> | S3 (Frontend)   |    |                   |
+| (HTTP Access)  |    |                   |    | (Static Hosting)|    |                   |
+|                |    |                   |    | (React App)     |    |                   |
++----------------+    +-------------------+    +-----------------+    |                   |
+       |                        ^                                     |                   |
+       |                        |                                     |                   |
+       | API Calls (HTTP)       |                                     |                   |
+       +------------------------+                                     |                   |
+       |                                                              |                   |
+       |              +----------------+    +-------------------+     |                   |
+       |              |                |    |                   |     |                   |
+       +------------> | ALB (Load      +--> | ECS Fargate       |     |                   |
+                      | Balancer)      |    | (Backend API)     |     |                   |
+                      | (HTTP Listener)|    | (Flask App)       |     |                   |
+                      |                |    |                   |     |                   |
+                      +----------------+    +-------------------+     |                   |
+                               |                        |              |                   |
+                               |                        |              |                   |
+                               |            +-----------+              |                   |
+                               |            |                          |                   |
+                               |            v                          |                   |
+                               |    +----------------+                 |                   |
+                               |    |                |                 |                   |
+                               +--> | S3 (Uploads)   |                 |                   |
+                                    | (File Storage) |                 |                   |
+                                    | (Backend       |                 |                   |
+                                    | Module)        |                 |                   |
+                                    |                |                 |                   |
+                                    +----------------+                 +-------------------+
+```
+
+## Traffic Flow Description
+
+1. **User Browser** makes HTTP requests to the application
+2. **CloudFront (CDN)** serves as the entry point and routes traffic:
+   - Static assets (HTML, CSS, JS) are served from **S3 (Frontend)**
+   - API calls are forwarded to the backend infrastructure
+3. **ALB (Load Balancer)** receives API calls and distributes them to:
+   - **ECS Fargate** containers running the Flask application
+4. **ECS Fargate (Backend API)** processes requests and interacts with:
+   - **S3 (Uploads)** for file storage operations
