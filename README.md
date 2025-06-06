@@ -99,3 +99,18 @@ pip install -r requirements.txt
 # export AWS_REGION="your-aws-region"
 flask run --host=0.0.0.0 --port=5000
 ```
+
+The Flask API will be accessible at `http://localhost:5000`.
+
+#### 2. Frontend (React App)
+
+Navigate to the `frontend/` directory.
+
+```bash
+cd frontend/
+npm install
+npm start
+```
+
+The React app will typically open in your browser at `http://localhost:3000`. You will need to update `frontend/src/UploadForm.js` to point to your local Flask backend URL (`http://localhost:5000`) for local testing.
+
