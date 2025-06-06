@@ -1,5 +1,5 @@
 # Terraform Modules: Contains reusable, self-contained Terraform modules
- - [AWS Network (VPC, Subnets, Security Groups)](https://github.com/RaduLupan/wetransfer-clone/tree/main/terraform/modules/network)
+- [AWS Network (VPC, Subnets, Security Groups)](https://github.com/RaduLupan/wetransfer-clone/tree/main/terraform/modules/network)
 
 - [ECS Fargate Flask Backend](https://github.com/RaduLupan/wetransfer-clone/tree/main/terraform/modules/ecs-flask-backend)
 
