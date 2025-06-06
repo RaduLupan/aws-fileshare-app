@@ -1,2 +1,2 @@
-# wetransfer-clone/terraform folder
+# Terraform
 Dedicated infrastructure-as-code root.
